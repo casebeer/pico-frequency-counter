@@ -5,7 +5,7 @@ import uarray as array
 
 from constants import MOSI, CS, CK, PIO_FREQ, CORRECTION, GATE_CYCLES
 from display import Display
-from rc import init_sm
+from reciprocal_counter import init_sm
 from util import format_frequency
 
 async def count():

@@ -1,6 +1,5 @@
-from micropython import const
-import rp2
-from rp2 import PIO, asm_pio
+# by horuable at https://forums.raspberrypi.com/viewtopic.php?t=306250#p1832034
+from rp2 import PIO, asm_pio, StateMachine
 
 @asm_pio(sideset_init=PIO.OUT_HIGH)
 def gate():
@@ -54,15 +53,15 @@ def init_sm(freq, input_pin, gate_pin, pulse_fin_pin):
     max_count = ((1 << 32) - 1)
     print(f"{max_count:08x}")
 
-    sm0 = rp2.StateMachine(0, gate, freq=freq, in_base=input_pin, sideset_base=gate_pin)
+    sm0 = StateMachine(0, gate, freq=freq, in_base=input_pin, sideset_base=gate_pin)
     sm0.put(freq)
     sm0.exec("pull()")
 
-    sm1 = rp2.StateMachine(1, clock_count, freq=freq, in_base=gate_pin, jmp_pin=pulse_fin_pin)
+    sm1 = StateMachine(1, clock_count, freq=freq, in_base=gate_pin, jmp_pin=pulse_fin_pin)
     sm1.put(max_count)
     sm1.exec("pull()")
 
-    sm2 = rp2.StateMachine(2, pulse_count, freq=freq, in_base=gate_pin, sideset_base = pulse_fin_pin, jmp_pin=gate_pin)
+    sm2 = StateMachine(2, pulse_count, freq=freq, in_base=gate_pin, sideset_base=pulse_fin_pin, jmp_pin=gate_pin)
     sm2.put(max_count-1)
     sm2.exec("pull()")
 

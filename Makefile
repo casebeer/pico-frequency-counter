@@ -6,7 +6,7 @@ run: force
 display-test: force
 	mpremote mount . run test_display.py
 
-install: main.py constants.py counter.py display.py rc.py util.py test_display.py
+install: main.py constants.py counter.py display.py reciprocal_counter.py util.py test_display.py
 	mpremote cp $^ : + reset
 
 install-deps: force
