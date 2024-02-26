@@ -3,6 +3,7 @@ Main module for 7-segment LED project
 '''
 
 from machine import Pin, SoftSPI
+import asyncio
 import time
 
 SR_DIN = 11
@@ -22,12 +23,41 @@ CODE_B_DP = 0x80
 code_b = dict((char, index) for index, char in enumerate(CODE_B_ALPHABET))
 code_b['.'] = CODE_B_DP
 
+def spi_init(mosi, csp, ck, miso=None):
+    cs = Pin(csp)
+    spi = SoftSPI(
+      baudrate=400000,
+      polarity=1,
+      phase=0,
+      sck=Pin(ck),
+      mosi=Pin(mosi),
+      miso=Pin(miso),
+    )
+    return cs, spi
+
+def spi_command(spi, cs, command, data):
+  '''Send command to MAX7812'''
+  try:
+    cs(0)
+    spi.write(bytearray([command, data]))
+  finally:
+    cs(1)
 
 def softspi():
   '''Use Software SPI'''
   d = Display(11, 12, 13)
   d.spi_command(DISPLAY_TEST, 0x1)
-  time.sleep(.5)
+  time.sleep(30)
+  return
+
+  cs, spi = spi_init(11, 12, 13)
+
+  spi_command(spi, cs, DISPLAY_TEST, 0x1)
+  time.sleep(30)
+  return
+  d = Display(11, 12, 13)
+  d.spi_command(DISPLAY_TEST, 0x1)
+  time.sleep(5)
   d.spi_command(DISPLAY_TEST, 0x0)
 
   d.spi_command(DECODE_MODE, 0x0)  # no code-b font decode for all digits
@@ -81,21 +111,26 @@ class Display():
   '''Control a MAX7812 7-segment display'''
   dot_symbol = CODE_B_DP
 
-  def __init__(self, mosi, cs, ck):
-    self.cs = Pin(cs)
+  def __init__(self, mosi, cs, ck, miso=20):
+    self.cs = Pin(cs, Pin.OUT)
     self.spi = SoftSPI(
-      baudrate=400000,
+      baudrate=1000000,
       polarity=1,
       phase=0,
       sck=Pin(ck),
       mosi=Pin(mosi),
-      miso=Pin(10),
+      miso=Pin(miso),
     )
+
     self._init_display()
 
   def _init_display(self):
+    # self.display_test(30)
+    # return
+
     self.shutdown()
 
+    self._stop_display_test()
     # self.spi_command(DECODE_MODE, 0x0)  # no code-b decode for all digits
     self.spi_command(DECODE_MODE, 0xff)  # code-b decode mode for all digits
     self.spi_command(SCAN_LIMIT, 0x7)  # scan all 8 digits
@@ -130,8 +165,17 @@ class Display():
 
   def display_test(self, seconds=1):
     '''Trigger MAX7218's internal all-segments display test for duration'''
+    print("Running LED display test...")
+    try:
+      self._start_display_test()
+      time.sleep(seconds)
+    finally:
+      self._stop_display_test()
+
+  def _start_display_test(self):
     self.spi_command(DISPLAY_TEST, 0x1)
-    time.sleep(seconds)
+
+  def _stop_display_test(self):
     self.spi_command(DISPLAY_TEST, 0x0)
 
   def symbolize(self, text):
@@ -150,7 +194,7 @@ class Display():
     '''
     if self.dot_symbol == 0:
       # no dot symbol defined, skip this
-      return
+      return symbols
 
     symbol = None
     it = iter(symbols)
@@ -164,8 +208,8 @@ class Display():
       if previous is not None:
         yield previous
       previous = symbol
-    if symbol is not None:
-      yield symbol
+    if previous is not None:
+      yield previous
 
   def render_left_justified(self, symbols):
     '''Prepare 8 chars for display, left justified'''
@@ -210,10 +254,10 @@ class Display():
   def spi_command(self, command, data):
     '''Send command to MAX7812'''
     try:
-      self.cs(0)
-      self.spi.write(bytearray([command, data]))
+      self.cs.off() #(0)
+      self.spi.write(bytearray([command & 0xff, data & 0xff]))
     finally:
-      self.cs(1)
+      self.cs.on() #(1)
 
 
 def display_test():
@@ -244,14 +288,77 @@ def display_test():
     d.display(f"{12.34}")
     time.sleep(1)
 
+async def count():
+  from machine import Pin
+  import uarray as array
+  from threadsafe import ThreadSafeQueue
+
+  from rc import init_sm
+
+  d = Display(11, 12, 13)
+
+  d.intensity(50)
+  d.display_test(0.5)
+
+  d.clear()
+  d.enable()
+
+  queue = ThreadSafeQueue(10)
+  data = array.array("I", [0, 0])
+
+  pio_freq = 125_000_000
+  gate_cycles = pio_freq // 10
+
+  def make_counter_handler(queue):
+    def handler(sm):
+      print("IRQ")
+      data[0] = sm1.get() # clock count
+      data[1] = sm2.get() # pulse count
+      print(data)
+      queue.put_sync(data)
+    return handler
+
+  sm0, sm1, sm2 = init_sm(pio_freq, Pin(10, Pin.IN, Pin.PULL_UP), Pin(9, Pin.OUT), Pin(8, Pin.OUT))
+  sm0.irq(make_counter_handler(queue))
+
+  # set gate cycle count to ~1/10 second (rather than 1 s)
+  sm0.put(gate_cycles)
+  sm0.exec("pull()")
+
+  print("Starting counter...")
+  i = 0
+  max_count = (1 << 32) - 1
+  # prep the idle counter so we display idle faster when starting up
+  idle_count = 20
+  while True:
+    if queue.empty():
+      if idle_count > 30:
+        d.display('-')
+      await asyncio.sleep_ms(100)
+      idle_count += 1
+      continue
+    idle_count = 0
+    clock_raw, pulse_raw = queue.get_sync(block=False)
+    print(clock_raw, pulse_raw)
+
+  # async for clock_raw, pulse_raw in queue:
+    clock_count = 2 * (max_count - clock_raw + 1)
+    pulse_count = max_count - pulse_raw
+    freq = pulse_count * (125000208.6 / clock_count)
+    print(i)
+    print(">Clock count: {}".format(clock_count))
+    print(">Input count: {}".format(pulse_count))
+    print(">Frequency:   {}".format(freq))
+    i += 1
+    d.display(f"{round(freq, 1):g}")
 
 def main():
   '''Main entry point'''
-  print("Hello, world")
+  print("Hello.")
   # softspi()
 
-  display_test()
-
+  # display_test()
+  asyncio.run(count())
 
 if __name__ == '__main__':
   main()
