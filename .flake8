@@ -1,0 +1,11 @@
+[flake8]
+indent-size = 2
+# E261 two spaces before inline comment
+# E302 two lines before function
+# E305 two lines after class or function
+# E501 line too long
+extend-ignore = E261,E302,E305,E501
+
+# ignore undefined names since lots of @asm_pio code in this file
+per-file-ignores =
+  reciprocal_counter.py: F821
