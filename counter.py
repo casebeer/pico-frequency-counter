@@ -3,7 +3,7 @@ from machine import Pin
 from threadsafe import ThreadSafeQueue
 import uarray as array
 
-from constants import MOSI, CS, CK, PIO_FREQ, CORRECTION, GATE_CYCLES
+from constants import MOSI, CS, CK, PIO_FREQ, CORRECTION, GATE_CYCLES, DISPLAY_INTENSITY
 from display import Display
 from reciprocal_counter import init_sm
 from util import format_frequency
@@ -12,7 +12,7 @@ async def count():
 
   d = Display(MOSI, CS, CK)
 
-  d.intensity(50)
+  d.intensity(DISPLAY_INTENSITY)
   d.display_test(0.5)
 
   d.clear()
@@ -21,21 +21,19 @@ async def count():
   queue = ThreadSafeQueue(10)
   data = array.array("I", [0, 0])
 
-  def make_counter_handler(queue):
-    def handler(sm):
-      print("IRQ")
-      data[0] = sm1.get() # clock count
-      data[1] = sm2.get() # pulse count
-      print(data)
-      queue.put_sync(data)
-    return handler
+  def counter_handler(sm):
+    print("IRQ")
+    data[0] = sm_clock.get() # clock count
+    data[1] = sm_count.get() # pulse count
+    print(data)
+    queue.put_sync(data)
 
-  sm0, sm1, sm2 = init_sm(PIO_FREQ, Pin(10, Pin.IN, Pin.PULL_UP), Pin(9, Pin.OUT), Pin(8, Pin.OUT))
-  sm0.irq(make_counter_handler(queue))
+  sm_gate, sm_clock, sm_count = init_sm(PIO_FREQ, Pin(10, Pin.IN, Pin.PULL_UP), Pin(9, Pin.OUT), Pin(8, Pin.OUT))
+  sm_gate.irq(counter_handler)
 
   # set gate cycle count to ~1/10 second (rather than 1 s)
-  sm0.put(GATE_CYCLES)
-  sm0.exec("pull()")
+  sm_gate.put(GATE_CYCLES)
+  sm_gate.exec("pull()")
 
   print("Starting counter...")
   i = 0
