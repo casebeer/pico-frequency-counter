@@ -65,17 +65,18 @@ def init_counter(queue):
     print(data)
     queue.put_sync(data)
 
+  # ensure input and gate pins are correctly configured as adjacent with the gate first
+  # before attempting to run state machines
+  assert COUNTER_INPUT_PIN == COUNTER_GATE_PIN + 1
+
   sm_gate, sm_clock, sm_count = init_sm(
     PIO_FREQ,
     input_pin=Pin(COUNTER_INPUT_PIN, Pin.IN, Pin.PULL_UP),
     gate_pin=Pin(COUNTER_GATE_PIN, Pin.OUT),
     pulse_fin_pin=Pin(COUNTER_PULSE_FIN_PIN, Pin.OUT),
+    gate_cycles=GATE_CYCLES,
   )
   sm_gate.irq(counter_handler)
-
-  # set gate cycle count to ~1/10 second (rather than 1 s)
-  sm_gate.put(GATE_CYCLES)
-  sm_gate.exec("pull()")
 
 async def run_display_test(disp, queue):
   '''Excercise the display code by running a mock data producer'''

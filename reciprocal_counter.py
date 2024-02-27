@@ -6,7 +6,14 @@ CORRECTED_PIO_FREQ = 125000208.6
 
 @asm_pio(sideset_init=PIO.OUT_HIGH)
 def gate():
-    """PIO to generate gate signal."""
+    """
+    PIO to generate gate signal.
+
+    Pin requirements:
+
+    - inputs: input_pin
+    - sideset: gate_pin
+    """
     mov(x, osr)                                            # load gate time (in clock pulses) from osr
     wait(0, pin, 0)                                        # wait for input to go low
     wait(1, pin, 0)                                        # wait for input to go high - effectively giving us rising edge detection
@@ -20,7 +27,14 @@ def gate():
 
 @asm_pio()
 def clock_count():
-    """PIO for counting clock pulses during gate low."""
+    """
+    PIO for counting clock pulses during gate low.
+
+    Pin requirements:
+
+    - inputs: gate_pin
+    - jmp_pin: pulse_fin_pin
+    """
     mov(x, osr)                                            # load x scratch with max value (2^32-1)
     wait(1, pin, 0)                                        # detect falling edge
     wait(0, pin, 0)                                        # of gate signal
@@ -34,7 +48,17 @@ def clock_count():
 
 @asm_pio(sideset_init=PIO.OUT_HIGH)
 def pulse_count():
-    """PIO for counting incoming pulses during gate low."""
+    """
+    PIO for counting incoming pulses during gate low.
+
+    Pin requirements:
+
+    - inputs: (gate_pin, input_pin)
+    - jmp_pin: gate_pin
+    - sideset: pulse_fin_pin
+
+    n.b. uses both gate and input pulse pins as inputs, so input_pin must be gate_pin + 1
+    """
     mov(x, osr)                                            # load x scratch with max value (2^32-1)
     wait(1, pin, 0)
     wait(0, pin, 0) .side(0)                               # detect falling edge of gate
@@ -49,14 +73,23 @@ def pulse_count():
     irq(block, 5)                                          # set irq and wait for gate PIO to acknowledge
 
 
-def init_sm(freq, input_pin, gate_pin, pulse_fin_pin):
-    """Starts state machines."""
+def init_sm(freq, input_pin, gate_pin, pulse_fin_pin, gate_cycles=None):
+    """
+    Starts state machines.
+
+    n.b. pulse_count SM uses both gate and input pulse pins as inputs,
+         so input_pin must be gate_pin + 1.
+    """
+    if gate_cycles is None:
+      gate_cycles = freq  # default gate to one second
+
     gate_pin.value(1)
     pulse_fin_pin.value(1)
+
     print(f"MAX_COUNT = {MAX_COUNT:08x}")
 
     sm0 = StateMachine(0, gate, freq=freq, in_base=input_pin, sideset_base=gate_pin)
-    sm0.put(freq)
+    sm0.put(gate_cycles)
     sm0.exec("pull()")
 
     sm1 = StateMachine(1, clock_count, freq=freq, in_base=gate_pin, jmp_pin=pulse_fin_pin)

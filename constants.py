@@ -15,7 +15,9 @@ GATE_CYCLES = PIO_FREQ // 10  # i.e. 100 ms gate time
 MAX_COUNT = (1 << 32) - 1
 
 COUNTER_INPUT_PIN = 10
-COUNTER_GATE_PIN = 9
+# Counter input pin must be the next pin after the gate pin,
+# since the pulse_count PIO reads from both as inputs.
+COUNTER_GATE_PIN = COUNTER_INPUT_PIN - 1
 COUNTER_PULSE_FIN_PIN = 8
 
 # Program behavior
