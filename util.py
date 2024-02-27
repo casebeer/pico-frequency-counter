@@ -8,7 +8,7 @@ def format_frequency(f):
   #   anyway) (we can fit 6 since we remove the '+' and leading '0' of the exponent.
   # - Shorten scientific notation display by removing the non-displayable '+' and the unused
   #   leading 0 of the exponent
-  formatted = f"{round(f, 1):{'g' if f < 10000 else '.0f' if f < 1e8 else '.6g'}}"
+  formatted = f"{round(f, 1):{'.1f' if f < 10000 else '.0f' if f < 1e8 else '.6g'}}"
   return re.sub(r'e\+?0', 'e', formatted)
 
 def convert_pulse_count(pulse_raw):
