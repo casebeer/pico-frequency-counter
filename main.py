@@ -2,7 +2,7 @@
 Main module for 7-segment LED project
 '''
 
-import counter
+import controller
 
 if __name__ == '__main__':
-  counter.main()
+  controller.main()

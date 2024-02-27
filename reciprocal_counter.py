@@ -1,5 +1,8 @@
 # by horuable at https://forums.raspberrypi.com/viewtopic.php?t=306250#p1832034
 from rp2 import PIO, asm_pio, StateMachine
+from constants import MAX_COUNT, PIO_FREQ
+
+CORRECTED_PIO_FREQ = 125000208.6
 
 @asm_pio(sideset_init=PIO.OUT_HIGH)
 def gate():
@@ -50,19 +53,18 @@ def init_sm(freq, input_pin, gate_pin, pulse_fin_pin):
     """Starts state machines."""
     gate_pin.value(1)
     pulse_fin_pin.value(1)
-    max_count = ((1 << 32) - 1)
-    print(f"{max_count:08x}")
+    print(f"MAX_COUNT = {MAX_COUNT:08x}")
 
     sm0 = StateMachine(0, gate, freq=freq, in_base=input_pin, sideset_base=gate_pin)
     sm0.put(freq)
     sm0.exec("pull()")
 
     sm1 = StateMachine(1, clock_count, freq=freq, in_base=gate_pin, jmp_pin=pulse_fin_pin)
-    sm1.put(max_count)
+    sm1.put(MAX_COUNT)
     sm1.exec("pull()")
 
     sm2 = StateMachine(2, pulse_count, freq=freq, in_base=gate_pin, sideset_base=pulse_fin_pin, jmp_pin=gate_pin)
-    sm2.put(max_count-1)
+    sm2.put(MAX_COUNT - 1)
     sm2.exec("pull()")
 
     sm1.active(1)
@@ -87,17 +89,16 @@ def main():
             data[1] = sm2.get() # pulse count
             update_flag[0] = True
 
-    sm0, sm1, sm2 = init_sm(125_000_000, Pin(15, Pin.IN, Pin.PULL_UP), Pin(14, Pin.OUT), Pin(13, Pin.OUT))
+    sm0, sm1, sm2 = init_sm(PIO_FREQ, Pin(15, Pin.IN, Pin.PULL_UP), Pin(14, Pin.OUT), Pin(13, Pin.OUT))
     sm0.irq(counter_handler)
 
     print("Starting test")
     i = 0
-    max_count = (1 << 32) - 1
     while True:
         if update_flag[0]:
-            clock_count = 2 * (max_count - data[0]+1)
-            pulse_count = max_count - data[1]
-            freq = pulse_count * (125000208.6 / clock_count)
+            clock_count = 2 * (MAX_COUNT - data[0]+1)
+            pulse_count = MAX_COUNT - data[1]
+            freq = pulse_count * (CORRECTED_PIO_FREQ / clock_count)
             print(i)
             print("Clock count: {}".format(clock_count))
             print("Input count: {}".format(pulse_count))
