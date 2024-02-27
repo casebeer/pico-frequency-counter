@@ -3,6 +3,10 @@
 run: force
 	mpremote mount . run main.py
 
+dev-env: force
+	virtualenv venv
+	venv/bin/pip install -r dev_requirements.txt
+
 display-test: force
 	mpremote mount . run test_display.py
 
