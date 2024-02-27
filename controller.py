@@ -5,7 +5,10 @@ from threadsafe import ThreadSafeQueue
 import time
 import uarray as array
 
-from constants import MOSI, CS, CK, PIO_FREQ, GATE_CYCLES, DISPLAY_INTENSITY, \
+from constants import \
+  PIO_FREQ, GATE_CYCLES, \
+  COUNTER_INPUT_PIN, COUNTER_GATE_PIN, COUNTER_PULSE_FIN_PIN, \
+  MOSI, CS, CK, DISPLAY_INTENSITY, \
   IDLE_THRESHOLD_MS, INIT_IDLE_THRESHOLD_MS, IDLE_SLEEP_MS
 from display import Display
 from reciprocal_counter import init_sm
@@ -62,7 +65,12 @@ def init_counter(queue):
     print(data)
     queue.put_sync(data)
 
-  sm_gate, sm_clock, sm_count = init_sm(PIO_FREQ, Pin(10, Pin.IN, Pin.PULL_UP), Pin(9, Pin.OUT), Pin(8, Pin.OUT))
+  sm_gate, sm_clock, sm_count = init_sm(
+    PIO_FREQ,
+    input_pin=Pin(COUNTER_INPUT_PIN, Pin.IN, Pin.PULL_UP),
+    gate_pin=Pin(COUNTER_GATE_PIN, Pin.OUT),
+    pulse_fin_pin=Pin(COUNTER_PULSE_FIN_PIN, Pin.OUT),
+  )
   sm_gate.irq(counter_handler)
 
   # set gate cycle count to ~1/10 second (rather than 1 s)

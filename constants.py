@@ -14,6 +14,10 @@ CORRECTION = 1.00004
 GATE_CYCLES = PIO_FREQ // 10  # i.e. 100 ms gate time
 MAX_COUNT = (1 << 32) - 1
 
+COUNTER_INPUT_PIN = 10
+COUNTER_GATE_PIN = 9
+COUNTER_PULSE_FIN_PIN = 8
+
 # Program behavior
 IDLE_THRESHOLD_MS = 3000 # stop displaying last freq after delay w/no detected freq
 INIT_IDLE_THRESHOLD_MS = 1000  # shorter idle time when booting up
