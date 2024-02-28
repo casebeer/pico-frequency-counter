@@ -1,3 +1,9 @@
+try:
+  from micropython import const
+except ImportError:
+  def const(n):
+    return n
+
 # LED Display config
 MOSI = 11
 CS = 12
@@ -11,8 +17,8 @@ PIO_FREQ = 125_000_000
 # read 9998082 @ correction == 1, oscope reads 9.9985 MHz
 # (9998082./9998500)**-1 = 1.000041808018778
 CORRECTION = 1.00004
-GATE_CYCLES = PIO_FREQ // 10  # i.e. 100 ms gate time
-MAX_COUNT = (1 << 32) - 1  # i.e. 0xffff ffff
+GATE_CYCLES = int(PIO_FREQ // 10)  # i.e. 100 ms gate time
+MAX_COUNT = const((1 << 32) - 1)  # i.e. 0xffff ffff
 
 COUNTER_INPUT_PIN = 10
 # Counter input pin must be the next pin after the gate pin,
