@@ -91,6 +91,7 @@ def init_counter(queue):
 async def run_display_test(disp, queue):
   '''Excercise the display code by running a mock data producer'''
   import test_display
+  print("Running display formatting and async display loop/queue test...")
   display_task = asyncio.create_task(display_loop(disp, queue))
   await asyncio.create_task(test_display.test_queue(queue))
   print("Done running async display test.")
