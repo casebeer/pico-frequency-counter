@@ -14,7 +14,7 @@ async def test_queue(queue):
   for item in test_raw_data:
     print(f"Enqueue: {item}")
     queue.put_sync(item)
-    await asyncio.sleep(0.5)
+    await asyncio.sleep(0.4)  # shorten delay since we only check for new freqs on a 100 ms cycle
 
 if __name__ == '__main__':
   from constants import MOSI, CS, CK
