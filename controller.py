@@ -19,11 +19,20 @@ assert IDLE_SLEEP_MS < IDLE_THRESHOLD_MS
 assert IDLE_SLEEP_MS < INIT_IDLE_THRESHOLD_MS
 
 async def display_loop(disp, queue):
-  print("Starting counter...")
   i = 0
+
+  # if gate time is < configured idle sleep time, use half the gate time so we
+  # can keep up with counter output as it's produced
+  idle_sleep_ms = min(IDLE_SLEEP_MS, int(1000 * GATE_CYCLES / PIO_FREQ // 2))
+
   # preload the idle counter so we display idle faster when starting up
-  idle_count = (IDLE_THRESHOLD_MS - INIT_IDLE_THRESHOLD_MS) // IDLE_SLEEP_MS
-  idle_threshold = IDLE_THRESHOLD_MS // IDLE_SLEEP_MS
+  idle_count = int((IDLE_THRESHOLD_MS - INIT_IDLE_THRESHOLD_MS) // idle_sleep_ms)
+  idle_threshold = int(IDLE_THRESHOLD_MS // idle_sleep_ms)
+
+  print(f"""Starting display loop...
+  idle_sleep_ms = {idle_sleep_ms}
+  idle_threshold = {idle_threshold}
+  init idle_count = {idle_count}""")
   while True:
     # polling queue rather than using `async for ...` so we can change behavior after timeout
     if queue.empty():
@@ -31,7 +40,7 @@ async def display_loop(disp, queue):
       if idle_count > idle_threshold:
         disp.display('-')
       # TODO: put display and microcontroller to sleep after enough idle cycles
-      await asyncio.sleep_ms(IDLE_SLEEP_MS)
+      await asyncio.sleep_ms(idle_sleep_ms)
       idle_count += 1
       continue
     idle_count = 0
@@ -69,6 +78,7 @@ def init_counter(queue):
   # before attempting to run state machines
   assert COUNTER_INPUT_PIN == COUNTER_GATE_PIN + 1
 
+  print("Starting counter...")
   sm_gate, sm_clock, sm_count = init_sm(
     PIO_FREQ,
     input_pin=Pin(COUNTER_INPUT_PIN, Pin.IN, Pin.PULL_UP),
